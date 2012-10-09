@@ -62,15 +62,8 @@
 
 void Cli_Task(void *pvParameters);
 
-static portBASE_TYPE prvBldcOnCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString);
-static portBASE_TYPE prvBldcOffCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString);
-static portBASE_TYPE prvSetDutyCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString);
-static portBASE_TYPE prvSetDirectionCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString);
-static portBASE_TYPE prvSetControlModeCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString);
-static portBASE_TYPE prvSyncMotorCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString);
-static portBASE_TYPE prvSetCommutationAngleCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString);
-static portBASE_TYPE prvEnableVelocityControlCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString);
-static portBASE_TYPE prvSetVelocityCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString);
+static portBASE_TYPE prvCmd1(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString);
+static portBASE_TYPE prvCmd2(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString);
 
 //===============================================================================================//
 //============================= PRIVATE VARIABLES/STRUCTURES ====================================//
@@ -80,85 +73,31 @@ static xTaskHandle _cliTaskHandle = 0;
 
 // CLI Commands
 
-//! On Command
-static const CLI_Command_Definition_t xBldcOnCommand =
+//! Command 1. Has no parameters.
+static const CLI_Command_Definition_t xCommand1 =
 {
-    (const int8_t*)"on",												//!< Text to type in command-line to exectue command
-    (const int8_t*)"on : Turns the BLDC motor on\r\n",					//!< Text to return on help
-    &prvBldcOnCommand,													//!< Function to run when command is typed
+    (const int8_t*)"cmd1",												//!< Text to type in command-line to exectue command
+    (const int8_t*)"cmd1: Has no parameters\r\n",						//!< Text to return on help
+    &prvCmd1,															//!< Function to run when command is typed
     0																	//!< Expected number of parameters
 };
 
-//! Off Command
-static const CLI_Command_Definition_t xBldcOffCommand =
+//! Command 2. Has one number parameter.
+static const CLI_Command_Definition_t xCommand2 =
 {
-    (const int8_t*)"off",												//!< Text to type in command-line to exectue command
-    (const int8_t*)"off : Turns the BLDC motor off\r\n",				//!< Text to return on help
-    &prvBldcOffCommand,													//!< Function to run when command is typed
-    0																	//!< Expected number of parameters
-};
-
-//! Set Speed Command
-static const CLI_Command_Definition_t xSetDutyCommand =
-{
-    (const int8_t*)"sduty",												//!< Text to type in command-line to exectue command
-    (const int8_t*)"sduty : Sets the duty cycle of the motor\r\n",		//!< Text to return on help
-    &prvSetDutyCommand,													//!< Function to run when command is typed
+    (const int8_t*)"cmd2",												//!< Text to type in command-line to exectue command
+    (const int8_t*)"cmd2 : Has one number parameter\r\n",				//!< Text to return on help
+    &prvCmd2,															//!< Function to run when command is typed
     1																	//!< Expected number of parameters (speed)
 };
 
-//! Set Direction Command
-static const CLI_Command_Definition_t xSetDirectionCommand =
+//! Command 3. Has one text parameter
+static const CLI_Command_Definition_t xCmd3 =
 {
-    (const int8_t*)"sdir",															//!< Text to type in command-line to exectue command
-    (const int8_t*)"sdir : (set-direction) Sets the direction of the motor\r\n",	//!< Text to return on help
-    &prvSetDirectionCommand,														//!< Function to run when command is typed
-    1																				//!< Expected number of parameters (speed)
-};
-
-//! Set Mode Command
-static const CLI_Command_Definition_t xSetControlModeCommand =
-{
-    (const int8_t*)"mode",														//!< Text to type in command-line to exectue command
-    (const int8_t*)"mode : Determines the control mode\r\nParameters: htho, ht, et, es, sm\r\n",					//!< Text to return on help
-    &prvSetControlModeCommand,															//!< Function to run when command is typed
-    1																			//!< Expected number of parameters (speed)
-};
-
-//! Sync Motor Command
-static const CLI_Command_Definition_t xSyncMotorCommand =
-{
-    (const int8_t*)"sync",																			//!< Text to type in command-line to exectue command
-    (const int8_t*)"sync : Orientates the motor to a known position in the electrical cycle.\r\n",	//!< Text to return on help
-    &prvSyncMotorCommand,																				//!< Function to run when command is typed
-    0																									//!< Expected number of parameters (speed)
-};
-
-//! Set commutation angle command
-static const CLI_Command_Definition_t xSetCommutaionAngleCommand =
-{
-    (const int8_t*)"sca",																		//!< Text to type in command-line to exectue command
-    (const int8_t*)"sca : Sets the commutation angle.\r\n",										//!< Text to return on help
-    &prvSetCommutationAngleCommand,																//!< Function to run when command is typed
-    1																							//!< Expected number of parameters (speed)
-};
-
-//! Enable velocity control command
-static const CLI_Command_Definition_t xEnableVelocityControlCommand =
-{
-    (const int8_t*)"evc",																		//!< Text to type in command-line to exectue command
-    (const int8_t*)"evc : Enables velocity control.\r\n",										//!< Text to return on help
-    &prvEnableVelocityControlCommand,															//!< Function to run when command is typed
-    0																							//!< Expected number of parameters (speed)
-};
-
-//! Set velocity command
-static const CLI_Command_Definition_t xSetVelocityCommand =
-{
-    (const int8_t*)"sv",																		//!< Text to type in command-line to exectue command
-    (const int8_t*)"sv : Changes the velocity set-point.\r\n",											//!< Text to return on help
-    &prvSetVelocityCommand,																		//!< Function to run when command is typed
-    1																							//!< Expected number of parameters (speed)
+    (const int8_t*)"cmd3",												//!< Text to type in command-line to exectue command
+    (const int8_t*)"cmd3 : Has one text parameter\r\n",					//!< Text to return on help
+    &prvCmd3,															//!< Function to run when command is typed
+    1																	//!< Expected number of parameters (speed)
 };
 
 //===============================================================================================//
@@ -173,15 +112,9 @@ static const CLI_Command_Definition_t xSetVelocityCommand =
 void Cli_Start(uint32 cliTaskStackSize, uint8 cliTaskPriority)
 {
 	// Register commands for CLI
-	FreeRTOS_CLIRegisterCommand(&xBldcOnCommand);
-	FreeRTOS_CLIRegisterCommand(&xBldcOffCommand);
-	FreeRTOS_CLIRegisterCommand(&xSetDutyCommand);
-	FreeRTOS_CLIRegisterCommand(&xSetDirectionCommand);
-	FreeRTOS_CLIRegisterCommand(&xSetControlModeCommand);
-	FreeRTOS_CLIRegisterCommand(&xSyncMotorCommand);
-	FreeRTOS_CLIRegisterCommand(&xSetCommutaionAngleCommand);
-	FreeRTOS_CLIRegisterCommand(&xEnableVelocityControlCommand);
-	FreeRTOS_CLIRegisterCommand(&xSetVelocityCommand);
+	FreeRTOS_CLIRegisterCommand(&xCmd1);
+	FreeRTOS_CLIRegisterCommand(&xCmd2);
+	FreeRTOS_CLIRegisterCommand(&xCmd3);
 	
 	#if(configENABLE_TASK_COMMS_INTERFACE == 1)
 		// Create the main task
@@ -194,32 +127,29 @@ void Cli_Start(uint32 cliTaskStackSize, uint8 cliTaskPriority)
 	#endif
 }
 
-//! @brief		Implements the bahaviour of the 'on' command
-//! @details	Sends the BLDC_ON command word to the BLDC task through the queue
+//! @brief		Implements the bahaviour of the 'cmd1' command
+//! @details	Sends the CMD_ON command word to a task through the command queue
 //! @note 		Must have the correct prototype. Public by way of function pointer.
 //! @public
-static portBASE_TYPE prvBldcOnCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
+static portBASE_TYPE prvCmd1(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
 {
-	//! @debug
-	//PinCpDebugLed1_Write(0);
-
 	portBASE_TYPE xResult;
 
-	// Create command variable and input the command word 'BLDC_ON'
-	bldcCommandStruct_t bldcCommandStruct;
-	bldcCommandStruct.commandWord = BLDC_ON;
+	// Create command variable and input the command word 'CMD_1'
+	commandStruct_t commandStruct;
+	commandStruct.commandWord = CMD_1;
 
-    // Send command to the BLDC task to turn motor on
-    xResult = xQueueSendToBack(_bldcTaskCommandQueue, &bldcCommandStruct , configMAX_QUEUE_WAIT_TIME_MS_BLDC_TASK/portTICK_RATE_MS);
+    // Send command to the task
+    xResult = xQueueSendToBack(_commandQueue, &commandStruct , configMAX_QUEUE_WAIT_TIME_MS_TASK/portTICK_RATE_MS);
 
     if(xResult == pdPASS)
     {
-        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Motor turned on.\r\n\r\n" );
+        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Command 1 sent.\r\n\r\n" );
     }
     else
     {
         // The copy was not successful. Inform the user.
-        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Error sending command BLDC_ON to motor\r\n\r\n" );
+        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Error sending command 1.\r\n\r\n" );
     }
 
     // There is only a single line of output produced in all cases. pdFALSE is
@@ -227,41 +157,12 @@ static portBASE_TYPE prvBldcOnCommand(int8_t *pcWriteBuffer, size_t xWriteBuffer
     return pdFALSE;
 }
 
-//! @brief		Implements the bahaviour of the 'off' CLI command
-//! @details	Sends the BLDC_OFF command word to the BLDC task through the queue
+
+//! @brief		Implements the bahaviour of the 'cmd2' command
+//! @details	Sends the CMD_2 command word and value to a task through the queue
 //! @note 		Must have the correct prototype. Public by way of function pointer.
 //! @public
-static portBASE_TYPE prvBldcOffCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
-{ 
-	portBASE_TYPE xResult;
-	
-	// Create command variable and input the command word 'BLDC_ON'
-	bldcCommandStruct_t bldcCommandStruct;
-	bldcCommandStruct.commandWord = BLDC_OFF;
-
-    // Send command to the BLDC task to turn motor on
-    xResult = xQueueSendToBack(_bldcTaskCommandQueue, &bldcCommandStruct , configMAX_QUEUE_WAIT_TIME_MS_BLDC_TASK/portTICK_RATE_MS);
-
-    if(xResult == pdPASS)
-    {
-        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Motor turned off.\r\n\r\n" );
-    }
-    else
-    {
-        // The copy was not successful. Inform the user.
-        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Error sending command BLDC_OFF to motor\r\n\r\n" );
-    }
-
-    // There is only a single line of output produced in all cases. pdFALSE is
-    // returned because there is no more output to be generated.
-    return pdFALSE;
-}
-
-//! @brief		Implements the bahaviour of the 'sduty' command
-//! @details	Sends the BLDC_SET_DUTY command word and speed value to the BLDC task through the queue
-//! @note 		Must have the correct prototype. Public by way of function pointer.
-//! @public
-static portBASE_TYPE prvSetDutyCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
+static portBASE_TYPE prvCmd2(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
 {
 	const int8_t *pcParameter1;
 	portBASE_TYPE xParameter1StringLength; 
@@ -276,39 +177,39 @@ static portBASE_TYPE prvSetDutyCommand(int8_t *pcWriteBuffer, size_t xWriteBuffe
         );
 	
 	
-	// Create command variable and input the command word 'BLDC_ON'
-	bldcCommandStruct_t bldcCommandStruct;
-	bldcCommandStruct.commandWord = BLDC_SET_DUTY;
+	// Create command variable and input the command word 'CMD_2'
+	commandStruct_t commandStruct;
+	commandStruct.commandWord = CMD_2;
 	
-	float dutyP = atof((char*)pcParameter1);
+	float number = atof((char*)pcParameter1);
 	
 	// Bounds checking
-	if(dutyP < 0.0)
+	if(number < 0.0)
 	{
-		UartComms_PutString("ERROR: Make sure duty cycle is above 0%.\r\n\r\n");
+		UartComms_PutString("ERROR: Make sure number is above 0%.\r\n\r\n");
 		return pdFALSE;
 	}
 	else if(dutyP > 100.0)
 	{
-		UartComms_PutString("ERROR: Make sure duty cycle is below 100%.\r\n\r\n");
+		UartComms_PutString("ERROR: Make sure number is below 100%.\r\n\r\n");
 		return pdFALSE;
 	}
 	else
-		bldcCommandStruct.value1 = dutyP;
+		commandStruct.value1 = number;
 
-    // Send command to the BLDC task to turn motor on
-    xResult = xQueueSendToBack(_bldcTaskCommandQueue, &bldcCommandStruct , configMAX_QUEUE_WAIT_TIME_MS_BLDC_TASK/portTICK_RATE_MS);
+    // Send command to the task
+    xResult = xQueueSendToBack(_commandQueue, &commandStruct , configMAX_QUEUE_WAIT_TIME_MS_TASK/portTICK_RATE_MS);
 
     if(xResult == pdPASS)
     {
         // The command was successful.  There is nothing to output.
         // The copy was not successful. Inform the user.
-        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Speed command received. Speed = %u\r\n\r\n", atoi((char*)pcParameter1));
+        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Command 2 received. Number = %u\r\n\r\n", atoi((char*)pcParameter1));
     }
     else
     {
         // The copy was not successful. Inform the user.
-        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Error sending command BLDC_SET_SPEED to motor\r\n\r\n" );
+        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "ERROR: Could not send command CMD_2.\r\n\r\n" );
     }
 
     // There is only a single line of output produced in all cases. pdFALSE is
@@ -316,11 +217,11 @@ static portBASE_TYPE prvSetDutyCommand(int8_t *pcWriteBuffer, size_t xWriteBuffe
     return pdFALSE;
 }
 
-//! @brief		Implements the bahaviour of the set direction ('sdir') command
-//! @details	Sends the BLDC_SET_SPEED command word and speed value to the BLDC task through the queue
+//! @brief		Implements the bahaviour of the 'cmd3') command
+//! @details	Sends the CMD_3 command word and values to a task through the queue
 //! @note 		Must have the correct prototype. Public by way of function pointer.
 //! @public
-static portBASE_TYPE prvSetDirectionCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
+static portBASE_TYPE prvCmd3(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
 {
 	const int8_t *pcParameter1;
 	portBASE_TYPE xParameter1StringLength; 
@@ -335,298 +236,36 @@ static portBASE_TYPE prvSetDirectionCommand(int8_t *pcWriteBuffer, size_t xWrite
         );
 	
 	// Create command variable and fill appropriate data
-	bldcCommandStruct_t bldcCommandStruct;
-	bldcCommandStruct.commandWord = BLDC_SET_DIRECTION;
+	commandStruct_t commandStruct;
+	commandStruct.commandWord = CMD_3;
 	
-	if(!strcmp((char*)pcParameter1, "cw"))
+	if(!strcmp((char*)pcParameter1, "choice1"))
 	{
-		bldcCommandStruct.value1 = (float)CLOCKWISE;
+		commandStruct.value1 = (float)CHOICE_1;
 	}
-	else if(!strcmp((char*)pcParameter1, "acw"))
+	else if(!strcmp((char*)pcParameter1, "choice2"))
 	{
-		bldcCommandStruct.value1 = (float)ANTI_CLOCKWISE;
-	}
-	else
-	{
-		UartComms_PutString("ERROR: Parameter to 'sd' not valid.\r\n\r\n");
-		return pdFALSE;
-	}
-	
-    // Send command to the BLDC task to turn motor on
-    xResult = xQueueSendToBack(_bldcTaskCommandQueue, &bldcCommandStruct , configMAX_QUEUE_WAIT_TIME_MS_BLDC_TASK/portTICK_RATE_MS);
-
-    if(xResult == pdPASS)
-    {
-        // The command was successful.  There is nothing to output.
-        // The copy was not successful. Inform the user.
-        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Direction command received. Direction = %u\r\n\r\n", atoi((char*)pcParameter1));
-    }
-    else
-    {
-        // The copy was not successful. Inform the user.
-        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Error sending command BLDC_SET_DIRECTION to motor\r\n\r\n" );
-    }
-
-    // There is only a single line of output produced in all cases. pdFALSE is
-    // returned because there is no more output to be generated.
-    return pdFALSE;
-}
-
-//! @brief		Implements the bahaviour of the 'set-speed' command
-//! @details	Sends the BLDC_SET_SPEED command word and speed value to the BLDC task through the queue
-//! @note 		Must have the correct prototype. Public by way of function pointer.
-//! @public
-static portBASE_TYPE prvSetControlModeCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
-{
-	const int8_t *pcParameter1;
-	portBASE_TYPE xParameter1StringLength; 
-	portBASE_TYPE xResult;
-
-    // Obtain the name of the source file, and the length of its name, from
-    // the command string. The name of the source file is the first parameter.
-    pcParameter1 = FreeRTOS_CLIGetParameter
-        ((const int8_t*)pcCommandString, 			// The command string itself.
-        (unsigned portBASE_TYPE)1,					// Return the first parameter.
-        (portBASE_TYPE*)&xParameter1StringLength   	// Store the parameter string length.
-        );
-	
-	#if(configPRINT_DEBUG_COMMS_INTERFACE == 1)
-		UartDebug_PutString("COMMS: Set mode command received.\r\n");
-	#endif
-	
-	// Create command variable and fill appropriate data
-	bldcCommandStruct_t bldcCommandStruct;
-	bldcCommandStruct.commandWord = BLDC_SET_CONTROL_MODE;
-	
-	if(!strcmp((char*)pcParameter1, "ht"))
-	{
-		bldcCommandStruct.value1 = (float)HALL_EFFECT_TRAPEZOIDAL;
-	}
-	else if(!strcmp((char*)pcParameter1, "et"))
-	{
-		bldcCommandStruct.value1 = (float)ENCODER_TRAPEZOIDAL;
-	}
-	else if(!strcmp((char*)pcParameter1, "es"))
-	{
-		bldcCommandStruct.value1 = (float)ENCODER_SINUSOIDAL;
-	}
-	else if(!strcmp((char*)pcParameter1, "sm"))
-	{
-		bldcCommandStruct.value1 = (float)STEP_MODE;
+		commandStruct.value1 = (float)CHOICE_2;
 	}
 	else
 	{
-		UartComms_PutString("ERROR: Parameter to 'mode' not valid.\r\n\r\n");
-		return pdFALSE;
-	}
-
-    // Send command to the BLDC task to turn motor on
-    xResult = xQueueSendToBack(_bldcTaskCommandQueue, &bldcCommandStruct , configMAX_QUEUE_WAIT_TIME_MS_BLDC_TASK/portTICK_RATE_MS);
-
-    if(xResult == pdPASS)
-    {
-        // The command was successful.  There is nothing to output.
-        // The copy was not successful. Inform the user.
-        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Direction command received. Direction = %u\r\n\r\n", atoi((char*)pcParameter1));
-    }
-    else
-    {
-        // The copy was not successful. Inform the user.
-        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Error sending command BLDC_ to motor\r\n\r\n" );
-    }
-
-    // There is only a single line of output produced in all cases. pdFALSE is
-    // returned because there is no more output to be generated.
-    return pdFALSE;
-}
-
-//! @brief		Implements the bahaviour of the 'sync motor' (sync) command
-//! @details	
-//! @note 		Must have the correct prototype. Public by way of function pointer.
-//! @public
-static portBASE_TYPE prvSyncMotorCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
-{
-	portBASE_TYPE xResult;
-
-	#if(configPRINT_DEBUG_COMMS_INTERFACE == 1)
-		UartDebug_PutString("COMMS: Sync motor command received.\r\n");
-	#endif
-	
-	// Create command variable and input the command word 'BLDC_ON'
-	bldcCommandStruct_t bldcCommandStruct;
-	bldcCommandStruct.commandWord = BLDC_SYNC_MOTOR;
-
-    // Send command to the BLDC task to turn motor on
-    xResult = xQueueSendToBack(_bldcTaskCommandQueue, &bldcCommandStruct , configMAX_QUEUE_WAIT_TIME_MS_BLDC_TASK/portTICK_RATE_MS);
-
-    if(xResult == pdPASS)
-    {
-        // The command was successful.  There is nothing to output.
-        // The copy was not successful. Inform the user.
-        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Direction command received. Direction = %u\r\n\r\n", atoi((char*)pcParameter1));
-    }
-    else
-    {
-        // The copy was not successful. Inform the user.
-        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Error sending command BLDC_ to motor\r\n\r\n" );
-    }
-
-    // There is only a single line of output produced in all cases. pdFALSE is
-    // returned because there is no more output to be generated.
-    return pdFALSE;
-}
-
-//! @brief		Implements the bahaviour of the set commutation angle ('sca') command
-//! @details	Sends the BLDC_SET_COMMUTATION command word and angle value to the BLDC task through the queue
-//! @note 		Must have the correct prototype. Public by way of function pointer.
-//! @public
-static portBASE_TYPE prvSetCommutationAngleCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
-{
-	const int8_t *pcParameter1;
-	portBASE_TYPE xParameter1StringLength; 
-	portBASE_TYPE xResult;
-
-    // Obtain the name of the source file, and the length of its name, from
-    // the command string. The name of the source file is the first parameter.
-    pcParameter1 = FreeRTOS_CLIGetParameter
-        ((const int8_t*)pcCommandString, 			// The command string itself.
-        (unsigned portBASE_TYPE)1,					// Return the first parameter.
-        (portBASE_TYPE*)&xParameter1StringLength   	// Store the parameter string length.
-        );
-	
-	#if(configPRINT_DEBUG_COMMS_INTERFACE == 1)
-		UartDebug_PutString("COMMS: Set commutation angle command received.\r\n");
-	#endif
-
-	float angle = atof((char*)pcParameter1);
-	
-	// Bounds checking
-	if(angle == 0.0)
-	{
-		UartComms_PutString("ERROR: Parameter to 'sca' not valid.\r\n\r\n");
-	}
-	else if(angle < 0.0)
-	{
-		UartComms_PutString("ERROR: Please make sure commutation angle is positive. Use 'set direction (sd)' command to change direction of rotation.\r\n\r\n");
-	}
-	else if(angle >= 360.0)
-	{
-		UartComms_PutString("ERROR: Please make sure commutation angle is less than 360.\r\n\r\n");
-	}
-
-	// Create command variable and fill appropriate data
-	bldcCommandStruct_t bldcCommandStruct;
-	bldcCommandStruct.commandWord = BLDC_SET_COMMUTATION_ANGLE;
-	bldcCommandStruct.value1 = angle;
-	
-    // Send command to the BLDC task to turn motor on
-    xResult = xQueueSendToBack(_bldcTaskCommandQueue, &bldcCommandStruct , configMAX_QUEUE_WAIT_TIME_MS_BLDC_TASK/portTICK_RATE_MS);
-
-    if(xResult == pdPASS)
-    {
-        // The command was successful.  There is nothing to output.
-        // The copy was not successful. Inform the user.
-        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Direction command received. Direction = %u\r\n\r\n", atoi((char*)pcParameter1));
-    }
-    else
-    {
-        // The copy was not successful. Inform the user.
-        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Error sending command BLDC_ to motor\r\n\r\n" );
-    }
-
-    // There is only a single line of output produced in all cases. pdFALSE is
-    // returned because there is no more output to be generated.
-    return pdFALSE;
-}
-
-//! @brief		Implements the bahaviour of the 'enable velocity control' (evc) command
-//! @details	
-//! @note 		Must have the correct prototype. Public by way of function pointer.
-//! @public
-static portBASE_TYPE prvEnableVelocityControlCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
-{
-	//const int8_t *pcParameter1;
-	//portBASE_TYPE xParameter1StringLength; 
-	portBASE_TYPE xResult;
-
-	#if(configPRINT_DEBUG_COMMS_INTERFACE == 1)
-		UartDebug_PutString("COMMS: Enable velocity control command received.\r\n");
-	#endif
-	
-	// Create command variable and input the command word 'BLDC_ON'
-	bldcCommandStruct_t bldcCommandStruct;
-	bldcCommandStruct.commandWord = BLDC_ENABLE_VELOCITY_CONTROL;
-
-    // Send command to the BLDC task to turn motor on
-    xResult = xQueueSendToBack(_bldcTaskCommandQueue, &bldcCommandStruct , configMAX_QUEUE_WAIT_TIME_MS_BLDC_TASK/portTICK_RATE_MS);
-
-    if(xResult == pdPASS)
-    {
-        // The command was successful.  There is nothing to output.
-        // The copy was not successful. Inform the user.
-        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Direction command received. Direction = %u\r\n\r\n", atoi((char*)pcParameter1));
-    }
-    else
-    {
-        // The copy was not successful. Inform the user.
-        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Error sending command BLDC_ENABLE_VELOCITY_CONTROL to motor\r\n\r\n" );
-    }
-
-    // There is only a single line of output produced in all cases. pdFALSE is
-    // returned because there is no more output to be generated.
-    return pdFALSE;
-}
-
-//! @brief		Implements the bahaviour of the set velocity ('sv') command
-//! @details	Sends the BLDC_SET_VELOCITY command word and velocity value to the BLDC task through the queue
-//! @note 		Must have the correct prototype. Public by way of function pointer.
-//! @public
-static portBASE_TYPE prvSetVelocityCommand(int8_t *pcWriteBuffer, size_t xWriteBufferLen, const int8_t *pcCommandString)
-{
-	const int8_t *pcParameter1;
-	portBASE_TYPE xParameter1StringLength; 
-	portBASE_TYPE xResult;
-
-    // Obtain the name of the source file, and the length of its name, from
-    // the command string. The name of the source file is the first parameter.
-    pcParameter1 = FreeRTOS_CLIGetParameter
-        ((const int8_t*)pcCommandString, 			// The command string itself.
-        (unsigned portBASE_TYPE)1,					// Return the first parameter.
-        (portBASE_TYPE*)&xParameter1StringLength   	// Store the parameter string length.
-        );
-	
-	uint16 velocitySetPointRpm = atof((char*)pcParameter1);
-	
-	// Bounds checking
-	if(velocitySetPointRpm < 0.0)
-	{
-		UartComms_PutString("ERROR: Velocity set point has to be > 0.\r\n\r\n");
-		return pdFALSE;	
-	}
-	else if(velocitySetPointRpm > configBLDC_MAX_RPM)
-	{
-		snprintf((char*)pcWriteBuffer, xWriteBufferLen, "ERROR: Velocity set point has to be lower than %f\r\n\r\n", configBLDC_MAX_RPM);
+		UartComms_PutString("ERROR: Parameter to 'cmd3' not valid.\r\n\r\n");
 		return pdFALSE;
 	}
 	
-	// Create command variable and input the command word 'BLDC_SET_VELOCITY'
-	bldcCommandStruct_t bldcCommandStruct;
-	bldcCommandStruct.commandWord = BLDC_SET_VELOCITY;
-	bldcCommandStruct.value1 = velocitySetPointRpm;
-	
-    // Send command to the BLDC task to change it's velocity
-    xResult = xQueueSendToBack(_bldcTaskCommandQueue, &bldcCommandStruct , configMAX_QUEUE_WAIT_TIME_MS_BLDC_TASK/portTICK_RATE_MS);
+    // Send command to the task
+    xResult = xQueueSendToBack(_commandQueue, &commandStruct , configMAX_QUEUE_WAIT_TIME_MS_TASK/portTICK_RATE_MS);
 
     if(xResult == pdPASS)
     {
         // The command was successful.  There is nothing to output.
         // The copy was not successful. Inform the user.
-        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "Speed command received. Speed = %u\r\n\r\n", atoi((char*)pcParameter1));
+        //snprintf((char*)pcWriteBuffer, xWriteBufferLen, "cmd3 command received. Parameter string = %u\r\n\r\n", atoi((char*)pcParameter1));
     }
     else
     {
         // The copy was not successful. Inform the user.
-        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "ERROR: Could not send command BLDC_SET_VELOCITY to motor\r\n\r\n" );
+        snprintf((char*)pcWriteBuffer, xWriteBufferLen, "ERROR: Could not send command CMD_3 to task.\r\n\r\n" );
     }
 
     // There is only a single line of output produced in all cases. pdFALSE is
